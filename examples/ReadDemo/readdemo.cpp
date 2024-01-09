@@ -1,4 +1,3 @@
-#include <QThread>
 /*----------------------------------------------------------------------
 Data Read Demo
 This demo shows how to read data from the PLC.
@@ -22,10 +21,9 @@ Specify its number into DBNum variable
     Client.Connect();
 
 ----------------------------------------------------------------------*/
-#include "profinet.h"
+#include "Profinet.h"
 #include <QHostAddress>
-// Uncomment next line to perform small and fast data access
-
+#include <QThread>
 
 int main()
 {
@@ -36,7 +34,7 @@ int main()
     int size=1024;
     void *target;
     target = &buffer;
-    int result=client.connectTo(&plc, 0, 2);
+    int result=client.connectTo(&plc, 0, 0); //s7 1200 demo.
     QThread::msleep(2000); //wait 2 seconds before connected.
     result=client.readArea(S7AreaDB, // We are requesting DB access
                            dBNum,    // DB Number
