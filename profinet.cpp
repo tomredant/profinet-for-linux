@@ -1,5 +1,4 @@
-#include "Profinet.h"
-#include "Profinet.h"
+#include "profinet.h"
 #include <QThread>
 #include <QDateTime>
 #include <QTcpSocket>
@@ -282,7 +281,7 @@ void S7Helper::setFloatAt(int index, float value)
 
 char * S7Helper::stringAt(void *buffer, int index)
 {
-    return pchar(buffer+index);
+    return &pchar(buffer)[index];
 }
 
 char * S7Helper::stringAt(int index)
@@ -292,7 +291,7 @@ char * S7Helper::stringAt(int index)
 
 void S7Helper::setStringAt(void *buffer, int index, char *value)
 {
-    strcpy(pchar(buffer+index),value);
+    strcpy(&pchar(buffer)[index],value);
 }
 
 void S7Helper::setStringAt(int index, char *value)
