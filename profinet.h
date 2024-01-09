@@ -7,16 +7,8 @@ typedef uint16_t word;
 typedef unsigned char uchar;
 class QHostAddress;
 
-// Memory models
-
-//#define _SMALL
-//#define _NORMAL
-#define _EXTENDED
 
 
-#if defined(_NORMAL) || defined(_EXTENDED)
-# define _S7HELPER
-#endif
 
 #pragma pack(1)
 // Error Codes
@@ -149,13 +141,7 @@ public:
 extern S7Helper S7;
 
 
-//-----------------------------------------------------------------------------
-// Ethernet initialization
-//-----------------------------------------------------------------------------
-void EthernetInit(uint8_t *mac, QHostAddress* ip);
-//-----------------------------------------------------------------------------
-// S7 Client
-//-----------------------------------------------------------------------------
+
 class QTcpSocket;
 class S7Client :QObject
 {

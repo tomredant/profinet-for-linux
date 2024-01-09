@@ -4,10 +4,6 @@ This demo shows how to read data from the PLC.
 A DB with at least 1024 byte into the PLC is needed.
 Specify its number into DBNum variable
 
-- Both small and large data transfer are performed (see DO_IT_SMALL)
-- During the loop, try to disconnect the ethernet cable.
-  The system will report the error and will reconnect automatically
-  when you re-plug the cable.
 - For safety, this demo *doesn't write* data into the PLC, try
   yourself to change ReadArea with WriteArea.
 - This demo uses ConnectTo() with Rack=0 and Slot=2 (S7300)
@@ -21,7 +17,7 @@ Specify its number into DBNum variable
     Client.Connect();
 
 ----------------------------------------------------------------------*/
-#include "Profinet.h"
+#include "profinet.h"
 #include <QHostAddress>
 #include <QThread>
 
