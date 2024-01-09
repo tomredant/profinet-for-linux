@@ -13,7 +13,7 @@ uchar ISO_CR[] = {
     0x00, // High part of packet lenght (entire frame, payload and TPDU included)
     0x16, // Low part of packet lenght (entire frame, payload and TPDU included)
     // COTP (ISO 8073 Header)
-    0x11, // PDU Size Length
+    0x11, // PDU size Length
     0xE0, // CR - Connection Request ID
     0x00, // Dst Reference HI
     0x00, // Dst Reference LO
@@ -44,20 +44,20 @@ uchar S7_PN[] = {
 // S7 Read/Write Request Header (contains also ISO Header and COTP Header)
 uchar S7_RW[] = { // 31-35 bytes
                   0x03, 0x00,
-                  0x00, 0x1f, // Telegram Length (Data Size + 31 or 35)
+                  0x00, 0x1f, // Telegram Length (Data size + 31 or 35)
                   0x02, 0xf0, 0x80, // COTP (see above for info)
                   0x32,       // S7 Protocol ID
                   0x01,       // Job Type
                   0x00, 0x00, // Redundancy identification
                   0x05, 0x00, // PDU Reference
                   0x00, 0x0e, // Parameters Length
-                  0x00, 0x00, // Data Length = Size(bytes) + 4
+                  0x00, 0x00, // Data Length = size(bytes) + 4
                   0x04,       // Function 4 Read Var, 5 Write Var
                   0x01,       // Items count
                   0x12,       // Var spec.
                   0x0a,       // Length of remaining bytes
                   0x10,       // Syntax ID
-                  S7WLByte,   // Transport Size (default, could be changed)
+                  S7WLByte,   // Transport size (default, could be changed)
                   0x00,0x00,  // Num Elements
                   0x00,0x00,  // DB Number (if any, else 0)
                   0x84,       // Area Type
@@ -280,9 +280,9 @@ void S7Helper::setFloatAt(int index, float value)
     setFloatAt(&PDU.DATA, index, value);
 }
 
-char * S7Helper::stringAt(void *Buffer, int index)
+char * S7Helper::stringAt(void *buffer, int index)
 {
-    return pchar(Buffer+index);
+    return pchar(buffer+index);
 }
 
 char * S7Helper::stringAt(int index)
@@ -290,9 +290,9 @@ char * S7Helper::stringAt(int index)
     return pchar(&PDU.DATA[index]);
 }
 
-void S7Helper::setStringAt(void *Buffer, int index, char *value)
+void S7Helper::setStringAt(void *buffer, int index, char *value)
 {
-    strcpy(pchar(Buffer+index),value);
+    strcpy(pchar(buffer+index),value);
 }
 
 void S7Helper::setStringAt(int index, char *value)
@@ -305,15 +305,15 @@ void S7Helper::setStringAt(int index, char *value)
 S7Client::S7Client()
 {
     // Default TSAP values for connectiong as PG to a S7300 (Rack 0, Slot 2)
-    LocalTSAP_HI = 0x01;
-    LocalTSAP_LO = 0x00;
-    RemoteTSAP_HI= 0x01;
-    RemoteTSAP_LO= 0x02;
-    ConnType = PG;
-    Connected = false;
-    LastError = 0;
-    PDULength = 0;
-    RecvTimeout = 500; // 500 ms
+    m_localTSAP_H = 0x01;
+    m_localTSAP_LO = 0x00;
+    m_remoteTSAP_HI= 0x01;
+    m_remoteTSAP_LO= 0x02;
+    m_connType = PG;
+    m_connected = false;
+    m_lastError = 0;
+    m_PDULength = 0;
+    m_recvTimeout = 500; // 500 ms
     m_tcpClient = new QTcpSocket();
 }
 
@@ -325,11 +325,11 @@ S7Client::~S7Client()
 
 int S7Client::setLastError(int Error)
 {
-    LastError=Error;
+    m_lastError=Error;
     return Error;
 }
 
-int S7Client::WaitForData(uint16_t size, uint16_t timeout)
+int S7Client::waitForData(uint16_t size, uint16_t timeout)
 {
     unsigned long elapsed = QDateTime::currentMSecsSinceEpoch();
     uint16_t bytesReady;
@@ -354,27 +354,27 @@ int S7Client::WaitForData(uint16_t size, uint16_t timeout)
     // Here we are in timeout zone, if there's something into the buffer, it must be discarded.
     if (bytesReady>0)
         m_tcpClient->flush();
-    else
-    {
-        if (!m_tcpClient->connected())
-            return setLastError(errTCPConnectionReset);
-    }
+//    else
+//    {
+//        if (!m_tcpClient->connected())
+//            return setLastError(errTCPConnectionReset);
+//    }
 
     return setLastError(errTCPDataRecvTout);
 }
 
-int S7Client::isoPduSize()
+int S7Client::isoPdusize()
 {
-    uint16_t Size = PDU.H[2];
-    return (Size<<8) + PDU.H[3];
+    uint16_t size = PDU.H[2];
+    return (size<<8) + PDU.H[3];
 }
 
-int S7Client::recvPacket(char *buf, uint16_t Size)
+int S7Client::recvPacket(char *buf, uint16_t size)
 {
-    waitForData(Size,RecvTimeout);
-    if (LastError!=0)
-        return LastError;
-    if (m_tcpClient->read(buf, Size)==0)
+    waitForData(size,m_recvTimeout);
+    if (m_lastError!=0)
+        return m_lastError;
+    if (m_tcpClient->read(buf, size)==0)
         return setLastError(errTCPConnectionReset);
     return setLastError(0);
 }
@@ -382,97 +382,116 @@ int S7Client::recvPacket(char *buf, uint16_t Size)
 void S7Client::setConnectionParams(QHostAddress* address, uint16_t LocalTSAP, uint16_t RemoteTSAP)
 {
     m_ipAddress = address;
-    LocalTSAP_HI = LocalTSAP>>8;
-    LocalTSAP_LO = LocalTSAP & 0x00FF;
-    RemoteTSAP_HI = RemoteTSAP>>8;
-    RemoteTSAP_LO = RemoteTSAP & 0x00FF;
+    m_localTSAP_H = LocalTSAP>>8;
+    m_localTSAP_LO = LocalTSAP & 0x00FF;
+    m_remoteTSAP_HI = RemoteTSAP>>8;
+    m_remoteTSAP_LO = RemoteTSAP & 0x00FF;
 }
 
 void S7Client::setConnectionType(uint16_t ConnectionType)
 {
-    ConnType = ConnectionType;
+    m_connType = ConnectionType;
 }
 
 int S7Client::connectTo(QHostAddress* address, uint16_t Rack, uint16_t Slot)
 {
-    setConnectionParams(address, 0x0100, (ConnType<<8)+(Rack * 0x20) + Slot);
+    setConnectionParams(address, 0x0100, (m_connType<<8)+(Rack * 0x20) + Slot);
     return connect();
 }
 
 int S7Client::connect()
 {
-    LastError = 0;
-    if (!Connected)
+    m_lastError = 0;
+    if (!m_connected)
     {
-        TCPConnect();
-        if (LastError==0) // First stage : TCP Connection
+        tCPConnect();
+        if (m_lastError==0) // First stage : TCP Connection
         {
             isoConnect();
-            if (LastError==0) // Second stage : ISOTCP (ISO 8073) Connection
+            if (m_lastError==0) // Second stage : ISOTCP (ISO 8073) Connection
             {
-                LastError=negotiatePduLength(); // Third stage : S7 PDU negotiation
+                m_lastError=negotiatePduLength(); // Third stage : S7 PDU negotiation
             }
         }
     }
-    Connected=LastError==0;
-    return LastError;
+    m_connected=m_lastError==0;
+    return m_lastError;
 }
 
 void S7Client::disconnect()
 {
-    if (Connected)
+    if (m_connected)
     {
-        m_tcpClient->stop();
-        Connected = false;
-        PDULength = 0;
-        LastError = 0;
+        m_tcpClient->disconnect();
+        m_connected = false;
+        m_PDULength = 0;
+        m_lastError = 0;
     }
 }
 
-int S7Client::TCPConnect()
+
+
+void S7Client::displayError(QAbstractSocket::SocketError socketError)
 {
-    if (m_tcpClient->connectToHost(m_ipAddress->toString(), isotcp))
-        return setLastError(0);
-    else
-        return setLastError(errTCPConnectionFailed);
+    switch (socketError) {
+    case QAbstractSocket::RemoteHostClosedError:
+        break;
+    case QAbstractSocket::HostNotFoundError:
+        qDebug() << "host not found";
+        break;
+    case QAbstractSocket::ConnectionRefusedError:
+        qDebug() << "connection refused";
+
+        break;
+    default:
+        qDebug() << "the following error occured" << m_tcpClient->errorString();
+    }
 }
 
-int S7Client::recvISOPacket(uint16_t *Size)
+
+
+int S7Client::tCPConnect()
+{
+    m_tcpClient->connectToHost(m_ipAddress->toString(), (quint16) isotcp);
+    return 0;
+}
+
+int S7Client::recvISOPacket(uint16_t *size)
 {
     bool Done = false;
     pchar Target = pchar(&PDU.H[0])+Shift;
-    LastError=0;
+    m_lastError=0;
 
-    while ((LastError==0) && !Done)
+    while ((m_lastError==0) && !Done)
     {
         // Get TPKT (4 bytes)
         recvPacket(PDU.H, 4);
-        if (LastError==0)
+        if (m_lastError==0)
         {
-            *Size = isoPduSize();
+            *size = isoPdusize();
             // Check 0 bytes Data Packet (only TPKT+COTP - 7 bytes)
-            if (*Size==7)
+            if (*size==7)
                 recvPacket(PDU.H, 3); // Skip remaining 3 bytes and Done is still false
             else
             {
-                if ((*Size>MaxPduSize) || (*Size<MinPduSize))
-                    LastError=errISOInvalidPDU;
+                if ((*size>MaxPduSize) || (*size<MinPduSize))
+                    m_lastError=errISOInvalidPDU;
                 else
                     Done = true; // a valid Length !=7 && >16 && <247
             }
         }
     }
-    if (LastError==0)
+    if (m_lastError==0)
     {
         recvPacket(PDU.H, 3); // Skip remaining 3 COTP bytes
-        LastPDUType=PDU.H[1]; // Stores PDU Type, we need it
-        *Size-=ISOSize;
+        m_lastPDUType=PDU.H[1]; // Stores PDU Type, we need it
+        *size-=ISOsize;
         // We need to align with PDU.DATA
-        recvPacket(Target, *Size);
+        recvPacket(Target, *size);
     }
-    if (LastError!=0)
+    if (m_lastError!=0)
         m_tcpClient->flush();
-    return LastError;
+    return m_lastError;
 }
 
 int S7Client::isoConnect()
@@ -480,42 +499,51 @@ int S7Client::isoConnect()
     bool Done = false;
     uint16_t Length;
     // Setup TSAPs
-    ISO_CR[16]=LocalTSAP_HI;
-    ISO_CR[17]=LocalTSAP_LO;
-    ISO_CR[20]=RemoteTSAP_HI;
-    ISO_CR[21]=RemoteTSAP_LO;
+    ISO_CR[16]=m_localTSAP_H;
+    ISO_CR[17]=m_localTSAP_LO;
+    ISO_CR[20]=m_remoteTSAP_HI;
+    ISO_CR[21]=m_remoteTSAP_LO;
 
-    if (m_tcpClient->write(&ISO_CR[0], sizeof(ISO_CR))==sizeof(ISO_CR))
+    char* isoCRConverted = new char[sizeof(ISO_CR)];
+    memcpy(isoCRConverted, &ISO_CR[0], sizeof(ISO_CR));
+    if (m_tcpClient->write(isoCRConverted, sizeof(ISO_CR))==sizeof(ISO_CR))
     {
+        delete[] isoCRConverted;
         recvISOPacket(&Length);
-        if ((LastError==0) && (Length==15)) // 15 = 22 (sizeof CC telegram) - 7 (sizeof Header)
+        if ((m_lastError==0) && (Length==15)) // 15 = 22 (sizeof CC telegram) - 7 (sizeof Header)
         {
-            if (LastPDUType==CC) // Connection confirm
+            if (m_lastPDUType==CC) // Connection confirm
                 return 0;
             else
                 return setLastError(errISOInvalidPDU);
         }
         else
-            return LastError;
+            return m_lastError;
     }
-    else
+    else {
+        delete[] isoCRConverted;
         return setLastError(errISOConnectionFailed);
+    }
 }
 
 int S7Client::negotiatePduLength()
 {
     uint16_t Length;
-    if (m_tcpClient->write(&S7_PN[0], sizeof(S7_PN))==sizeof(S7_PN))
+
+    char* s7PNConverted = new char[sizeof(S7_PN)];
+    memcpy(s7PNConverted, &S7_PN[0], sizeof(S7_PN));
+    if (m_tcpClient->write(s7PNConverted, sizeof(S7_PN))==sizeof(S7_PN))
     {
+        delete[] s7PNConverted;
         recvISOPacket(&Length);
-        if (LastError==0)
+        if (m_lastError==0)
         {
             // check S7 Error
             if ((Length==20) && (PDU.H[27]==0) && (PDU.H[28]==0))  // 20 = size of Negotiate Answer
             {
-                PDULength = PDU.RAW[35];
-                PDULength = (PDULength<<8) + PDU.RAW[36]; // Value negotiated
-                if (PDULength>0)
+                m_PDULength = PDU.RAW[35];
+                m_PDULength = (m_PDULength<<8) + PDU.RAW[36]; // Value negotiated
+                if (m_PDULength>0)
                     return 0;
                 else
                     return setLastError(errISONegotiatingPDU);
@@ -524,36 +552,38 @@ int S7Client::negotiatePduLength()
                 return setLastError(errISONegotiatingPDU);
         }
         else
-            return LastError;
+            return m_lastError;
     }
-    else
+    else {
+        delete[] s7PNConverted;
         return setLastError(errISONegotiatingPDU);
+    }
 }
 
-int S7Client::readArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData)
+int S7Client::readArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData)
 {
     unsigned long Address;
     unsigned long LongStart=Start;
     uint16_t NumElements;
     uint16_t MaxElements;
     uint16_t TotElements;
-    uint16_t SizeRequested;
+    uint16_t sizeRequested;
     uint16_t Length;
 
     pchar Target;
     uintptr_t Offset = 0;
-    int WordSize = 1;
+    int Wordsize = 1;
 
-    LastError=0;
+    m_lastError=0;
 
     // If we are addressing Timers or counters the element size is 2
     if ((Area==S7AreaCT) || (Area==S7AreaTM))
-        WordSize = 2;
+        Wordsize = 2;
 
     if (WordLen==S7WLBit) // Only one bit can be transferred in S7Protocol when WordLen==S7WLBit
         Amount=1;
 
-    MaxElements=(PDULength-18) / WordSize; // 18 = Reply telegram header
+    MaxElements=(m_PDULength-18) / Wordsize; // 18 = Reply telegram header
     TotElements=Amount;
     // If we use the internal buffer only, we cannot exced the PDU limit
     if (ptrData==NULL)
@@ -562,25 +592,25 @@ int S7Client::readArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amo
             TotElements=MaxElements;
     }
 
-    while ((TotElements>0) && (LastError==0))
+    while ((TotElements>0) && (m_lastError==0))
     {
         NumElements=TotElements;
         if (NumElements>MaxElements)
             NumElements=MaxElements;
 
-        SizeRequested =NumElements * WordSize;
+        sizeRequested =NumElements * Wordsize;
 
         Target=pchar(ptrData)+Offset;
 
         // Setup the telegram
-        memcpy(&PDU.H, S7_RW, Size_RD);
+        memcpy(&PDU.H, S7_RW, size_RD);
 
         // Set DB Number
         PDU.H[27] = Area;
         if (Area==S7AreaDB)
         {
-            PDU.H[25] = DBNumber>>8;
-            PDU.H[26] = DBNumber & 0x00FF;
+            PDU.H[25] = dBNumber>>8;
+            PDU.H[26] = dBNumber & 0x00FF;
         }
 
         // Adjusts Start and word length
@@ -610,70 +640,70 @@ int S7Client::readArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amo
         Address = Address >> 8;
         PDU.H[28] = Address & 0x000000FF;
 
-        if (m_tcpClient->write(&PDU.H[0], Size_RD)==Size_RD)
+        if (m_tcpClient->write(&PDU.H[0], size_RD)==size_RD)
         {
             recvISOPacket(&Length);
-            if (LastError==0)
+            if (m_lastError==0)
             {
                 if (Length>=18)
                 {
-                    if ((Length-18==SizeRequested) && (PDU.H[31]==0xFF))
+                    if ((Length-18==sizeRequested) && (PDU.H[31]==0xFF))
                     {
                         if (ptrData!=NULL)
-                            memcpy(Target, &PDU.DATA[0], SizeRequested); // Copies in the user's buffer
-                        Offset+=SizeRequested;
+                            memcpy(Target, &PDU.DATA[0], sizeRequested); // Copies in the user's buffer
+                        Offset+=sizeRequested;
                     }
                     else
-                        LastError = errS7DataRead;
+                        m_lastError = errS7DataRead;
                 }
                 else
-                    LastError = errS7InvalidPDU;
+                    m_lastError = errS7InvalidPDU;
             }
         }
         else
-            LastError = errTCPDataSend;
+            m_lastError = errTCPDataSend;
 
         TotElements -= NumElements;
-        LongStart += NumElements*WordSize;
+        LongStart += NumElements*Wordsize;
     }
-    return LastError;
+    return m_lastError;
 }
 
-int S7Client::readArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, void *ptrData)
+int S7Client::readArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Amount, void *ptrData)
 {
-    return readArea(Area, DBNumber, Start, Amount, S7WLByte, ptrData);
+    return readArea(Area, dBNumber, Start, Amount, S7WLByte, ptrData);
 }
 
-int S7Client::readBit(int Area, uint16_t DBNumber, uint16_t BitStart, bool &Bit)
+int S7Client::readBit(int Area, uint16_t dBNumber, uint16_t BitStart, bool &Bit)
 {
-    return readArea(Area, DBNumber, BitStart, 1, S7WLBit, &Bit);
+    return readArea(Area, dBNumber, BitStart, 1, S7WLBit, &Bit);
 }
 
-int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData)
+int S7Client::writeArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData)
 {
     unsigned long Address;
     unsigned long LongStart=Start;
     uint16_t NumElements;
     uint16_t MaxElements;
     uint16_t TotElements;
-    uint16_t DataSize;
-    uint16_t IsoSize;
+    uint16_t Datasize;
+    uint16_t Isosize;
     uint16_t Length;
 
     pchar Source;
     uintptr_t Offset = 0;
-    int WordSize = 1;
+    int Wordsize = 1;
 
-    LastError=0;
+    m_lastError=0;
 
     // If we are addressing Timers or counters the element size is 2
     if ((Area==S7AreaCT) || (Area==S7AreaTM))
-        WordSize = 2;
+        Wordsize = 2;
 
     if (WordLen==S7WLBit) // Only one bit can be transferred in S7Protocol when WordLen==S7WLBit
         Amount=1;
 
-    MaxElements=(PDULength-35) / WordSize; // 35 = Write telegram header
+    MaxElements=(m_PDULength-35) / Wordsize; // 35 = Write telegram header
     TotElements=Amount;
     if (ptrData==NULL)
     {
@@ -681,22 +711,22 @@ int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Am
             TotElements=MaxElements;
     }
 
-    while ((TotElements>0) && (LastError==0))
+    while ((TotElements>0) && (m_lastError==0))
     {
         NumElements=TotElements;
         if (NumElements>MaxElements)
             NumElements=MaxElements;
         // If we use the internal buffer only, we cannot exced the PDU limit
-        DataSize=NumElements*WordSize;
-        IsoSize=Size_WR+DataSize;
+        Datasize=NumElements*Wordsize;
+        Isosize=size_WR+Datasize;
 
         // Setup the telegram
-        memcpy(&PDU.H, S7_RW, Size_WR);
-        // Whole telegram Size
-        PDU.H[2]=IsoSize>>8;
-        PDU.H[3]=IsoSize & 0x00FF;
+        memcpy(&PDU.H, S7_RW, size_WR);
+        // Whole telegram size
+        PDU.H[2]=Isosize>>8;
+        PDU.H[3]=Isosize & 0x00FF;
         // Data Length
-        Length=DataSize+4;
+        Length=Datasize+4;
         PDU.H[15]=Length>>8;
         PDU.H[16]=Length & 0x00FF;
         // Function
@@ -705,14 +735,14 @@ int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Am
         PDU.H[27] = Area;
         if (Area==S7AreaDB)
         {
-            PDU.H[25] = DBNumber>>8;
-            PDU.H[26] = DBNumber & 0x00FF;
+            PDU.H[25] = dBNumber>>8;
+            PDU.H[26] = dBNumber & 0x00FF;
         }
         // Adjusts Start and word length
         if ((WordLen == S7WLBit) || (Area==S7AreaCT) || (Area==S7AreaTM))
         {
             Address = LongStart;
-            Length = DataSize;
+            Length = Datasize;
             if (WordLen==S7WLBit)
                 PDU.H[22]=S7WLBit;
             else {
@@ -725,7 +755,7 @@ int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Am
         else
         {
             Address = LongStart<<3;
-            Length = DataSize<<3;
+            Length = Datasize<<3;
         }
         // Num elements
         PDU.H[23]=NumElements<<8;
@@ -737,7 +767,7 @@ int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Am
         Address = Address >> 8;
         PDU.H[28] = Address & 0x000000FF;
 
-        // Transport Size
+        // Transport size
         switch (WordLen)
         {
         case S7WLBit:
@@ -758,100 +788,100 @@ int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Am
         // Copy data
         Source=pchar(ptrData)+Offset;
         if (ptrData!=NULL)
-            memcpy(&PDU.RAW[35], Source, DataSize);
+            memcpy(&PDU.RAW[35], Source, Datasize);
 
-        if (m_tcpClient->write(&PDU.H[0], IsoSize)==IsoSize)
+        if (m_tcpClient->write(&PDU.H[0], Isosize)==Isosize)
         {
             recvISOPacket(&Length);
-            if (LastError==0)
+            if (m_lastError==0)
             {
                 if (Length==15)
                 {
                     if ((PDU.H[27]!=0x00) || (PDU.H[28]!=0x00) || (PDU.H[31]!=0xFF))
-                        LastError = errS7DataWrite;
+                        m_lastError = errS7DataWrite;
                 }
                 else
-                    LastError = errS7InvalidPDU;
+                    m_lastError = errS7InvalidPDU;
             }
         }
         else
-            LastError = errTCPDataSend;
+            m_lastError = errTCPDataSend;
 
-        Offset+=DataSize;
+        Offset+=Datasize;
         TotElements -= NumElements;
-        LongStart += NumElements*WordSize;
+        LongStart += NumElements*Wordsize;
     }
-    return LastError;
+    return m_lastError;
 }
-int S7Client::writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, void *ptrData)
+int S7Client::writeArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Amount, void *ptrData)
 {
-    return writeArea(Area, DBNumber, Start, Amount, S7WLByte, ptrData);
+    return writeArea(Area, dBNumber, Start, Amount, S7WLByte, ptrData);
 }
-int S7Client::writeBit(int Area, uint16_t DBNumber, uint16_t BitIndex, bool Bit)
-{
-    bool BitToWrite=Bit;
-    return writeArea(Area, DBNumber, BitIndex, 1, S7WLBit, &BitToWrite);
-}
-int S7Client::writeBit(int Area, uint16_t DBNumber, uint16_t ByteIndex, uint16_t BitInByte, bool Bit)
+int S7Client::writeBit(int Area, uint16_t dBNumber, uint16_t BitIndex, bool Bit)
 {
     bool BitToWrite=Bit;
-    return writeArea(Area, DBNumber, ByteIndex*8+BitInByte, 1, S7WLBit, &BitToWrite);
+    return writeArea(Area, dBNumber, BitIndex, 1, S7WLBit, &BitToWrite);
+}
+int S7Client::writeBit(int Area, uint16_t dBNumber, uint16_t ByteIndex, uint16_t BitInByte, bool Bit)
+{
+    bool BitToWrite=Bit;
+    return writeArea(Area, dBNumber, ByteIndex*8+BitInByte, 1, S7WLBit, &BitToWrite);
 }
 
-int S7Client::getDBSize(uint16_t DBNumber, uint16_t *Size)
+int S7Client::getDBSize(uint16_t dBNumber, uint16_t *size)
 {
     uint16_t Length;
-    LastError=0;
-    *Size=0;
+    m_lastError=0;
+    *size=0;
     // Setup the telegram
     memcpy(&PDU.H[0], S7_BI, sizeof(S7_BI));
     // Set DB Number
-    PDU.RAW[31]=(DBNumber / 10000)+0x30;
-    DBNumber=DBNumber % 10000;
-    PDU.RAW[32]=(DBNumber / 1000)+0x30;
-    DBNumber=DBNumber % 1000;
-    PDU.RAW[33]=(DBNumber / 100)+0x30;
-    DBNumber=DBNumber % 100;
-    PDU.RAW[34]=(DBNumber / 10)+0x30;
-    DBNumber=DBNumber % 10;
-    PDU.RAW[35]=(DBNumber / 1)+0x30;
+    PDU.RAW[31]=(dBNumber / 10000)+0x30;
+    dBNumber=dBNumber % 10000;
+    PDU.RAW[32]=(dBNumber / 1000)+0x30;
+    dBNumber=dBNumber % 1000;
+    PDU.RAW[33]=(dBNumber / 100)+0x30;
+    dBNumber=dBNumber % 100;
+    PDU.RAW[34]=(dBNumber / 10)+0x30;
+    dBNumber=dBNumber % 10;
+    PDU.RAW[35]=(dBNumber / 1)+0x30;
     if (m_tcpClient->write(&PDU.H[0], sizeof(S7_BI))==sizeof(S7_BI))
     {
         recvISOPacket(&Length);
-        if (LastError==0)
+        if (m_lastError==0)
         {
             if (Length>25) // 26 is the minimum expected
             {
                 if ((PDU.RAW[37]==0x00) && (PDU.RAW[38]==0x00) && (PDU.RAW[39]==0xFF))
                 {
-                    *Size=PDU.RAW[83];
-                    *Size=(*Size<<8)+PDU.RAW[84];
+                    *size=PDU.RAW[83];
+                    *size=(*size<<8)+PDU.RAW[84];
                 }
                 else
-                    LastError = errS7Function;
+                    m_lastError = errS7Function;
             }
             else
-                LastError = errS7InvalidPDU;
+                m_lastError = errS7InvalidPDU;
         }
     }
     else
-        LastError = errTCPDataSend;
+        m_lastError = errTCPDataSend;
 
-    return LastError;
+    return m_lastError;
 }
-int S7Client::dBGet(uint16_t DBNumber, void *ptrData, uint16_t *Size)
+int S7Client::dBGet(uint16_t dBNumber, void *ptrData, uint16_t *size)
 {
     uint16_t Length;
     int Result;
 
-    Result=getDBSize(DBNumber, &Length);
+    Result=getDBSize(dBNumber, &Length);
     if (Result==0)
     {
-        if (Length<=*Size) // Check if the buffer supplied is big enough
+        if (Length<=*size) // Check if the buffer supplied is big enough
         {
-            Result=readArea(S7AreaDB, DBNumber, 0, Length, ptrData);
+            Result=readArea(S7AreaDB, dBNumber, 0, Length, ptrData);
             if (Result==0)
-                *Size=Length;
+                *size=Length;
         }
         else
             Result=errBufferTooSmall;
@@ -862,63 +892,63 @@ int S7Client::dBGet(uint16_t DBNumber, void *ptrData, uint16_t *Size)
 int S7Client::plcStop()
 {
     uint16_t Length;
-    LastError=0;
+    m_lastError=0;
     // Setup the telegram
     memcpy(&PDU.H, S7_STOP, sizeof(S7_STOP));
     if (m_tcpClient->write(&PDU.H[0], sizeof(S7_STOP))==sizeof(S7_STOP))
     {
         recvISOPacket(&Length);
-        if (LastError==0)
+        if (m_lastError==0)
         {
             if (Length>12) // 13 is the minimum expected
             {
                 if ((PDU.H[27]!=0x00) || (PDU.H[28]!=0x00))
-                    LastError = errS7Function;
+                    m_lastError = errS7Function;
             }
             else
-                LastError = errS7InvalidPDU;
+                m_lastError = errS7InvalidPDU;
         }
     }
     else
-        LastError = errTCPDataSend;
+        m_lastError = errTCPDataSend;
 
-    return LastError;
+    return m_lastError;
 }
 int S7Client::plcStart()
 {
     uint16_t Length;
-    LastError=0;
+    m_lastError=0;
     // Setup the telegram
     memcpy(&PDU.H, S7_START, sizeof(S7_START));
     if (m_tcpClient->write(&PDU.H[0], sizeof(S7_START))==sizeof(S7_START))
     {
         recvISOPacket(&Length);
-        if (LastError==0)
+        if (m_lastError==0)
         {
             if (Length>12) // 13 is the minimum expected
             {
                 if ((PDU.H[27]!=0x00) || (PDU.H[28]!=0x00))
-                    LastError = errS7Function;
+                    m_lastError = errS7Function;
             }
             else
-                LastError = errS7InvalidPDU;
+                m_lastError = errS7InvalidPDU;
         }
     }
     else
-        LastError = errTCPDataSend;
+        m_lastError = errTCPDataSend;
 
-    return LastError;
+    return m_lastError;
 }
-int S7Client::getPlcStatus(int *Status)
+int S7Client::getPlcStatus(int *status)
 {
     uint16_t Length;
-    LastError=0;
+    m_lastError=0;
     // Setup the telegram
     memcpy(&PDU.H, S7_PLCGETS, sizeof(S7_PLCGETS));
     if (m_tcpClient->write(&PDU.H[0], sizeof(S7_PLCGETS))==sizeof(S7_PLCGETS))
     {
         recvISOPacket(&Length);
-        if (LastError==0)
+        if (m_lastError==0)
         {
             if (Length>53) // 54 is the minimum expected
             {
@@ -926,31 +956,32 @@ int S7Client::getPlcStatus(int *Status)
                 {
                 case S7CpuStatusUnknown :
                 case S7CpuStatusRun     :
-                case S7CpuStatusStop    : *Status=PDU.RAW[54];
+                case S7CpuStatusStop    : *status=PDU.RAW[54];
                     break;
                 default :
                     // Since RUN status is always 0x08 for all CPUs and CPs, STOP status
                     // sometime can be coded as 0x03 (especially for old cpu...)
-                    *Status=S7CpuStatusStop;
+                    *status=S7CpuStatusStop;
                 }
             }
             else
-                LastError = errS7InvalidPDU;
+                m_lastError = errS7InvalidPDU;
         }
     }
     else
-        LastError = errTCPDataSend;
+        m_lastError = errTCPDataSend;
 
-    return LastError;
+    return m_lastError;
 }
-int S7Client::isoExchangeBuffer(uint16_t *Size)
+int S7Client::isoExchangeBuffer(uint16_t *size)
 {
-    LastError=0;
+    m_lastError=0;
 
-    if (m_tcpClient->write(&PDU.H[0], int(Size))==*Size)
-        recvISOPacket(Size);
+    if (m_tcpClient->write(&PDU.H[0], (qint64) (size))==*size)
+        recvISOPacket(size);
     else
-        LastError = errTCPDataSend;
+        m_lastError = errTCPDataSend;
 
-    return LastError;
+    return m_lastError;
 }
+

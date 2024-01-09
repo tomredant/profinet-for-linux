@@ -9,7 +9,9 @@ QT += network
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    Profinet.cpp
+    Profinet.cpp \
+examples/ReadDemo/readdemo.cpp
+
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -17,9 +19,8 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
-    Profinet.h \
+    Profinet.h
 #    examples/DBGetDemo/DBGetDemo.ino \
 #    examples/M5StackSentron/M5StackSentron.ino \
-    examples/ReadDemo/readdemo.cpp \
 #    examples/RunStopDemo/RunStopDemo.ino \
 #    examples/StatusDemo/StatusDemo.ino
