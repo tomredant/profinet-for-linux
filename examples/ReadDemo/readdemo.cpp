@@ -21,9 +21,8 @@ Specify its number into DBNum variable
     Client.Connect();
     
 ----------------------------------------------------------------------*/
-#include "Platform.h"
 #include "Profinet.h"
-
+#include <QHostAddress>
 // Uncomment next line to perform small and fast data access
 #define DO_IT_SMALL
 
@@ -32,13 +31,12 @@ Specify its number into DBNum variable
 byte mac[] = { 
   0x90, 0xA2, 0xDA, 0x0F, 0x08, 0xE1 };
 
-IPAddress Local(192,168,178,90); // Local Address
+QHostAddress local(192,168,178,90); // Local Address
 IPAddress PLC(192,168,178,12);   // PLC Address
 
 // Following constants are needed if you are connecting via WIFI
 // The ssid is the name of my WIFI network (the password obviously is wrong)
-char ssid[] = "yourssid";    // Your network SSID (name)
-char pass[] = "yourpassword";  // Your network password (if any)
+
 IPAddress Gateway(192, 168, 178, 1);
 IPAddress Subnet(255, 255, 255, 0);
 
@@ -55,23 +53,7 @@ void setup() {
     // Open serial communications and wait for port to open:
     Serial.begin(115200);
     
-#ifdef S7WIFI
-//--------------------------------------------- ESP8266 Initialization    
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-    WiFi.begin(ssid, pass);
-    WiFi.config(Local, Gateway, Subnet);
-    while (WiFi.status() != WL_CONNECTED) 
-    {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("");
-    Serial.println("WiFi connected");  
-    Serial.print("Local IP address : ");
-    Serial.println(WiFi.localIP());
-#else
+
 //--------------------------------Wired Ethernet Shield Initialization    
     // Start the Ethernet Library
     EthernetInit(mac, Local);
@@ -82,14 +64,13 @@ void setup() {
     Serial.println("Cable connected");  
     Serial.print("Local IP address : ");
     Serial.println(Ethernet.localIP());
-#endif   
 }
 //----------------------------------------------------------------------
 // Connects to the PLC
 //----------------------------------------------------------------------
 bool Connect()
 {
-    int Result=Client.ConnectTo(PLC, 
+    int Result=Client.connectTo(PLC,
                                   0,  // Rack (see the doc.)
                                   2); // Slot (see the doc.)
     Serial.print("Connecting to ");Serial.println(PLC);  
@@ -107,12 +88,12 @@ bool Connect()
 void Dump(void *Buffer, int Length)
 {
   int i, cnt=0;
-  pbyte buf;
+  pchar buf;
   
   if (Buffer!=NULL)
-    buf = pbyte(Buffer);
+    buf = pchar(Buffer);
   else  
-    buf = pbyte(&PDU.DATA[0]);
+    buf = pchar(&PDU.DATA[0]);
 
   Serial.print("[ Dumping ");Serial.print(Length);
   Serial.println(" bytes ]===========================");
@@ -143,7 +124,7 @@ void CheckError(int ErrNo)
   if (ErrNo & 0x00FF)
   {
     Serial.println("SEVERE ERROR, disconnecting.");
-    Client.Disconnect(); 
+    Client.disconnect(); 
   }
 }
 //----------------------------------------------------------------------
@@ -187,7 +168,7 @@ void loop()
   Serial.print("Reading ");Serial.print(Size);Serial.print(" bytes from DB");Serial.println(DBNum);
   // Get the current tick
   MarkTime();
-  Result=Client.ReadArea(S7AreaDB, // We are requesting DB access
+  Result=Client.readArea(S7AreaDB, // We are requesting DB access
                          DBNum,    // DB Number
                          0,        // Start from byte N.0
                          Size,     // We need "Size" bytes

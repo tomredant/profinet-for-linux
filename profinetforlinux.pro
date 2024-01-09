@@ -2,6 +2,7 @@ QT -= gui
 
 CONFIG += c++11 console
 CONFIG -= app_bundle
+QT += network
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -16,7 +17,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
-    Platform.h \
     Profinet.h \
 #    examples/DBGetDemo/DBGetDemo.ino \
 #    examples/M5StackSentron/M5StackSentron.ino \

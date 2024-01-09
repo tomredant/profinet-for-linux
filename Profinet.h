@@ -1,6 +1,9 @@
 #ifndef PROFINET_H
 #define PROFINET_H
-#include "Platform.h"
+#include "stdint.h"
+typedef uint16_t word;
+typedef unsigned char uchar;
+class QHostAddress;
 
 // Memory models
 
@@ -71,9 +74,9 @@
 #define TS_ResReal  0x07
 #define TS_ResOctet 0x09
 
-const byte S7CpuStatusUnknown = 0x00;
-const byte S7CpuStatusRun     = 0x08;
-const byte S7CpuStatusStop    = 0x04;
+const uchar S7CpuStatusUnknown = 0x00;
+const uchar S7CpuStatusRun     = 0x08;
+const uchar S7CpuStatusStop    = 0x04;
 
 #define RxOffset    18
 #define Size_RD     31
@@ -85,20 +88,19 @@ typedef int16_t integer;        // 16 bit signed integer
 typedef unsigned long dword;    // 32 bit unsigned integer
 typedef long dint;              // 32 bit signed integer
 
-typedef byte *pbyte;
+typedef char *pchar;
 typedef word *pword;
 typedef dword *pdword;
 typedef integer *pinteger;
 typedef dint *pdint;
 typedef float *pfloat;
-typedef char *pchar;
 
 typedef union{
 	struct {
-		byte H[Size_WR];                      // PDU Header
-		byte DATA[MaxPduSize-Size_WR+Shift];  // PDU Data
+        char H[Size_WR];                      // PDU Header
+        char DATA[MaxPduSize-Size_WR+Shift];  // PDU Data
 	};
-	byte RAW[MaxPduSize+Shift];
+    char RAW[MaxPduSize+Shift];
 }TPDU;
 
 
@@ -109,39 +111,39 @@ typedef union{
 class S7Helper
 {
 public:
-	bool BitAt(void *Buffer, int ByteIndex, byte BitIndex);
-	bool BitAt(int ByteIndex, int BitIndex);
-	byte ByteAt(void *Buffer, int index);
-	byte ByteAt(int index);
-	word WordAt(void *Buffer, int index);
-	word WordAt(int index);
-	dword DWordAt(void *Buffer, int index);
-	dword DWordAt(int index);
-	float FloatAt(void *Buffer, int index);
-	float FloatAt(int index);
-	integer IntegerAt(void *Buffer, int index);
-	integer IntegerAt(int index);
-	long DintAt(void *Buffer, int index);
-	long DintAt(int index);
+    bool bitAt(void *Buffer, int ByteIndex, uchar BitIndex);
+	bool bitAt(int ByteIndex, int BitIndex);
+    uchar byteAt(void *Buffer, int index);
+    uchar byteAt(int index);
+	word wordAt(void *Buffer, int index);
+	word wordAt(int index);
+	dword dWordAt(void *Buffer, int index);
+	dword dWordAt(int index);
+	float floatAt(void *Buffer, int index);
+	float floatAt(int index);
+	integer integerAt(void *Buffer, int index);
+	integer integerAt(int index);
+	long dintAt(void *Buffer, int index);
+	long dintAt(int index);
 	// New 2.0
-    void SetBitAt(void *Buffer, int ByteIndex, int BitIndex, bool Value);
-	void SetBitAt(int ByteIndex, int BitIndex, bool Value);
-	void SetByteAt(void *Buffer, int index, byte value);
-	void SetByteAt(int index, byte value);
-	void SetIntAt(void *Buffer, int index, integer value);
-	void SetIntAt(int index, integer value);
-	void SetDIntAt(void *Buffer, int index, dint value);
-	void SetDIntAt(int index, dint value);
-	void SetWordAt(void *Buffer, int index, word value);
-	void SetWordAt(int index, word value);
-	void SetDWordAt(void *Buffer, int index, dword value);
-	void SetDWordAt(int index, word value);
-	void SetFloatAt(void *Buffer, int index, float value);
-	void SetFloatAt(int index, float value);
-	char * StringAt(void *Buffer, int index);
-	char * StringAt(int index);
-	void SetStringAt(void *Buffer, int index, char *value);
-	void SetStringAt(int index, char *value);
+    void setBitAt(void *Buffer, int ByteIndex, int BitIndex, bool Value);
+	void setBitAt(int ByteIndex, int BitIndex, bool Value);
+    void setByteAt(void *Buffer, int index, uchar value);
+    void setByteAt(int index, uchar value);
+	void setIntAt(void *Buffer, int index, integer value);
+	void setIntAt(int index, integer value);
+	void setDIntAt(void *Buffer, int index, dint value);
+	void setDIntAt(int index, dint value);
+	void setWordAt(void *Buffer, int index, word value);
+	void setWordAt(int index, word value);
+	void setDWordAt(void *Buffer, int index, dword value);
+	void setDWordAt(int index, word value);
+	void setFloatAt(void *Buffer, int index, float value);
+	void setFloatAt(int index, float value);
+	char * stringAt(void *Buffer, int index);
+	char * stringAt(int index);
+	void setStringAt(void *Buffer, int index, char *value);
+	void setStringAt(int index, char *value);
 };
 extern S7Helper S7;
 
@@ -150,10 +152,11 @@ extern S7Helper S7;
 //-----------------------------------------------------------------------------
 // Ethernet initialization
 //-----------------------------------------------------------------------------
-void EthernetInit(uint8_t *mac, IPAddress ip);
+void EthernetInit(uint8_t *mac, QHostAddress* ip);
 //-----------------------------------------------------------------------------
 // S7 Client
 //-----------------------------------------------------------------------------
+class QTcpSocket;
 class S7Client
 {
 private:
@@ -164,22 +167,22 @@ private:
 	uint8_t LastPDUType;
 	uint16_t ConnType;
 
-	IPAddress Peer;
+    QHostAddress* m_ipAddress;
 
 	// Since we can use either an EthernetClient or a WifiClient
 	// we have to create the class as an ancestor and then resolve
 	// the inherited into S7Client creator.
-	Client *TCPClient;
+    QTcpSocket* m_tcpClient;
 
 	int PDULength;    // PDU Length negotiated
-	int IsoPduSize();
-	int WaitForData(uint16_t Size, uint16_t Timeout);
-	int RecvISOPacket(uint16_t *Size);
-	int RecvPacket(uint8_t *buf, uint16_t Size);
+	int isoPduSize();
+    int waitForData(uint16_t Size, uint16_t Timeout);
+    int recvISOPacket(uint16_t *Size);
+    int recvPacket(char *buf, uint16_t Size);
 	int TCPConnect();
-	int ISOConnect();
-	int NegotiatePduLength();
-	int SetLastError(int Error);
+	int isoConnect();
+	int negotiatePduLength();
+	int setLastError(int Error);
 public:
 	// Output properties
 	bool Connected;   // true if the Client is connected
@@ -192,29 +195,28 @@ public:
 	S7Client(int Media) : S7Client(){}; // Compatibility V1.X
 	~S7Client();
 	// Basic functions
-	void SetConnectionParams(IPAddress Address, uint16_t LocalTSAP, uint16_t RemoteTSAP);
-	void SetConnectionType(uint16_t ConnectionType);
-	int ConnectTo(IPAddress Address, uint16_t Rack, uint16_t Slot);
-	int Connect();
-	void Disconnect();
-	int ReadArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, void *ptrData);
-	int ReadArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData);
-	int ReadBit(int Area, uint16_t DBNumber, uint16_t BitStart, bool &Bit);
-	int WriteArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, void *ptrData);
-	int WriteArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData);
-	int WriteBit(int Area, uint16_t DBNumber, uint16_t BitIndex, bool Bit);
-	int WriteBit(int Area, uint16_t DBNumber, uint16_t ByteIndex, uint16_t BitInByte, bool Bit);
+    void setConnectionParams(QHostAddress* address, uint16_t LocalTSAP, uint16_t RemoteTSAP);
+	void setConnectionType(uint16_t ConnectionType);
+    int connectTo(QHostAddress* address, uint16_t Rack, uint16_t Slot);
+    int connect();
+	void disconnect();
+	int readArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, void *ptrData);
+	int readArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData);
+	int readBit(int Area, uint16_t DBNumber, uint16_t BitStart, bool &Bit);
+	int writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, void *ptrData);
+	int writeArea(int Area, uint16_t DBNumber, uint16_t Start, uint16_t Amount, int WordLen, void *ptrData);
+	int writeBit(int Area, uint16_t DBNumber, uint16_t BitIndex, bool Bit);
+	int writeBit(int Area, uint16_t DBNumber, uint16_t ByteIndex, uint16_t BitInByte, bool Bit);
 
 	int GetPDULength(){ return PDULength; }
 	// Extended functions
 #ifdef _EXTENDED
-	int GetDBSize(uint16_t DBNumber, uint16_t *Size);
-	int DBGet(uint16_t DBNumber, void *ptrData, uint16_t *Size);
-    int PlcStart(); // Warm start
-    int PlcStop();
-    int GetPlcStatus(int *Status);
-	int IsoExchangeBuffer(uint16_t *Size);
-	void ErrorText(int Error, char *Text, int TextLen);
+	int getDBSize(uint16_t DBNumber, uint16_t *Size);
+	int dBGet(uint16_t DBNumber, void *ptrData, uint16_t *Size);
+    int plcStart(); // Warm start
+    int plcStop();
+    int getPlcStatus(int *Status);
+	int isoExchangeBuffer(uint16_t *Size);
 #endif
 };
 
