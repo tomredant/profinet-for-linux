@@ -1,4 +1,4 @@
-#include "profinet.h"
+#include "s7comm.h"
 #include <QThread>
 #include <QDateTime>
 #include <QTcpSocket>
@@ -339,16 +339,19 @@ int S7Client::waitForData(uint16_t size, uint16_t timeout)
         // but it belongs to the standard Ethernet library and there are too many dependencies to skip them.
         // So be very carefully with the munber of the clients, they must be <=4.
         bytesReady=m_tcpClient->bytesAvailable();
-        if (bytesReady<size)
-            QThread::usleep(500);
-        else
-            return setLastError(0);
+        if ((bytesReady >= size) || m_tcpClient->waitForReadyRead()) {
+            bytesReady=m_tcpClient->bytesAvailable();
+            //qDebug() << "bytesready: " << bytesReady << "needed:" << size;
+            if (bytesReady<size)
+                QThread::usleep(500);
+            else
+                return setLastError(0);
 
-        // Check for rollover - should happen every 52 days without turning off Arduino.
-        if (QDateTime::currentMSecsSinceEpoch() <elapsed)
-            elapsed=QDateTime::currentMSecsSinceEpoch() ; // Resets the counter, in the worst case we will wait some additional millisecs.
-
-    }while(QDateTime::currentMSecsSinceEpoch() -elapsed<timeout);
+            //        // Check for rollover - should happen every 52 days without turning off Arduino.
+            //        if (QDateTime::currentMSecsSinceEpoch() <elapsed)
+            //            elapsed=QDateTime::currentMSecsSinceEpoch() ; // Resets the counter, in the worst case we will wait some additional millisecs.
+        }
+    } while((QDateTime::currentMSecsSinceEpoch() -elapsed)<timeout);
 
     // Here we are in timeout zone, if there's something into the buffer, it must be discarded.
     if (bytesReady>0)
@@ -373,7 +376,7 @@ int S7Client::recvPacket(char *buf, uint16_t size)
     waitForData(size,m_recvTimeout);
     if (m_lastError!=0)
         return m_lastError;
-    if (m_tcpClient->read(buf, size)==0)
+    if (m_tcpClient->read(buf, size)!=size)
         return setLastError(errTCPConnectionReset);
     return setLastError(0);
 }
@@ -452,7 +455,11 @@ void S7Client::displayError(QAbstractSocket::SocketError socketError)
 int S7Client::tCPConnect()
 {
     m_tcpClient->connectToHost(m_ipAddress->toString(), (quint16) isotcp);
-    return 0;
+    if(m_tcpClient->waitForConnected() ) {
+        qDebug() << "tcp connection open: " << m_tcpClient->isOpen();
+        return 0;
+    }
+    return -1;
 }
 
 int S7Client::recvISOPacket(uint16_t *size)
@@ -502,11 +509,11 @@ int S7Client::isoConnect()
     ISO_CR[17]=m_localTSAP_LO;
     ISO_CR[20]=m_remoteTSAP_HI;
     ISO_CR[21]=m_remoteTSAP_LO;
-
     char* isoCRConverted = new char[sizeof(ISO_CR)];
     memcpy(isoCRConverted, &ISO_CR[0], sizeof(ISO_CR));
     if (m_tcpClient->write(isoCRConverted, sizeof(ISO_CR))==sizeof(ISO_CR))
     {
+        //m_tcpClient->flush();
         delete[] isoCRConverted;
         recvISOPacket(&Length);
         if ((m_lastError==0) && (Length==15)) // 15 = 22 (sizeof CC telegram) - 7 (sizeof Header)
@@ -639,6 +646,7 @@ int S7Client::readArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Amo
         Address = Address >> 8;
         PDU.H[28] = Address & 0x000000FF;
 
+
         if (m_tcpClient->write(&PDU.H[0], size_RD)==size_RD)
         {
             recvISOPacket(&Length);
@@ -646,10 +654,13 @@ int S7Client::readArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Amo
             {
                 if (Length>=18)
                 {
-                    if ((Length-18==sizeRequested) && (PDU.H[31]==0xFF))
+                    if ((Length-18==sizeRequested) && (PDU.H[31]==-1))
                     {
-                        if (ptrData!=NULL)
+                        if (ptrData!=NULL) {
                             memcpy(Target, &PDU.DATA[0], sizeRequested); // Copies in the user's buffer
+                            //for(int k=0;k<sizeRequested;k++)
+                            //    qDebug() << (unsigned int) Target[k];
+                        }
                         Offset+=sizeRequested;
                     }
                     else
@@ -796,7 +807,7 @@ int S7Client::writeArea(int Area, uint16_t dBNumber, uint16_t Start, uint16_t Am
             {
                 if (Length==15)
                 {
-                    if ((PDU.H[27]!=0x00) || (PDU.H[28]!=0x00) || (PDU.H[31]!=0xFF))
+                    if ((PDU.H[27]!=0x00) || (PDU.H[28]!=0x00) || (PDU.H[31]!=-1))
                         m_lastError = errS7DataWrite;
                 }
                 else
@@ -851,7 +862,7 @@ int S7Client::getDBSize(uint16_t dBNumber, uint16_t *size)
         {
             if (Length>25) // 26 is the minimum expected
             {
-                if ((PDU.RAW[37]==0x00) && (PDU.RAW[38]==0x00) && (PDU.RAW[39]==0xFF))
+                if ((PDU.RAW[37]==0x00) && (PDU.RAW[38]==0x00) && (PDU.RAW[39]==-1))
                 {
                     *size=PDU.RAW[83];
                     *size=(*size<<8)+PDU.RAW[84];

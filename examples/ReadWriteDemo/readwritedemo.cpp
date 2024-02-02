@@ -17,17 +17,17 @@ Specify its number into DBNum variable
     Client.Connect();
 
 ----------------------------------------------------------------------*/
-#include "profinet.h"
+#include "s7comm.h"
 #include <QHostAddress>
 #include <QThread>
 
 int main()
 {
-    QHostAddress plc(((quint32) 192 << 24) + ((quint32) 168 << 16) + ((quint32) 0 << 8) + ((quint32) 100)); // Local Address
-    int dBNum = 100; // This DB must be present in your PLC
+    QHostAddress plc(((quint32) 192 << 24) + ((quint32) 168 << 16) + ((quint32) 2 << 8) + ((quint32) 10)); // Local Address
+    int dBNum = 1; // This DB must be present in your PLC
     char buffer[1024];
     S7Client client;
-    int size=1024;
+    int size=100;
     void *target;
     target = &buffer;
     int result=client.connectTo(&plc, 0, 0); //s7 1200 demo.
@@ -38,7 +38,21 @@ int main()
                            size,     // We need "Size" bytes
                            target);  // Put them into our target (Buffer or PDU)
     char* output = pchar(target);
-    qDebug() << output[0] << output[1] << output[2]; //etc...
+    for(int i=0;i<size;i++)
+        qDebug() << (unsigned short) output[i];
+
+
+    //MSB first
+    output[86]=0;
+    output[87]=0;
+    output[88]=0;
+    //LSB last
+    output[89]=20;
+    client.writeArea(S7AreaDB, // We are requesting DB access
+                     dBNum,    // DB Number
+                     0,        // Start from byte N.0
+                     size,     // We need "Size" bytes
+                     target);  // Put them into our target (Buffer or PDU)
 }
 
 

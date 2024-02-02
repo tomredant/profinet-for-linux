@@ -1,5 +1,5 @@
-#ifndef PROFINET_H
-#define PROFINET_H
+#ifndef S7COMM_H
+#define S7COMM_H
 #include "stdint.h"
 #include <QObject>
 #include <QAbstractSocket>
@@ -209,4 +209,4 @@ public slots:
 
 extern TPDU PDU;
 
-#endif // PROFINET_H
+#endif // S7COMM_H
